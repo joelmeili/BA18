@@ -1,0 +1,517 @@
+---
+title: "The Influence of the Investment Horizon on the Asset Allocation"
+author: "Joël Meili and Fabio Bührer"
+date: "June 7, 2019"
+abstract: "Portfolio optimization usually involves minimizing the risk of a portfolio for a given level of expected return. This requires a definition of risk. In Markovitz portfolio optimization, risk is defined as the standard deviation of returns. As the standard deviation makes no reference to a client’s investment horizon, this yields the same optimal portfolio for long-term investors as for short-term investors, which seems counter-intuitive. To address this issue, we use value-at-risk and expected shortfall over a given investment horizon as risk measures, instead of the standard deviation of returns. We include a review and comparison of these different risk measures, their advantages and their shortcomings. In addition, we account for the fact that the distributions of market returns are not exactly normal, but exhibit different degrees of fat tails. Based on analyzing 35 years of daily market returns, we model them by univariate and multivariate skewed Student’s t-distributions, whose numbers of degrees of freedom range from 3 to 10. Fewer degrees of freedom, i.e., fatter tails, correspond to shorter-term returns. We include a review of normal distributions, symmetric Student’s t-Distributions, skewed Student’s t-distributions and their generalization, the generalized hyperbolic distributions. We then first use numerical techniques to minimize value-at-risk over a given investment horizon for a portfolio consisting of assets that are described by symmetric Student’s t distributions with different degrees of freedom. We find that the optimal portfolio now depends on the investment horizon. In particular, the appetite for heavy-tailed assets grows with longer investment horizons, while for shorter-term horizons the assets with more normally-distributed returns are overweighted. In a second step, we analytically minimize Expected Shortfall over various levels, corresponding to different investment horizons, for a portfolio consisting of assets that are described by the multivariate skewed Student’s t distribution. The results confirm again that longer-term investors should take more tail risk, while short-term investors should avoid it. Implications for institutional portfolio management are briefly discussed."
+bibliography: bibliography.bib
+header-includes:
+ \usepackage{float}
+ \floatplacement{figure}{H}
+ \renewcommand{\contentsname}{Table of Contents}
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 4
+    number_sections: true
+fontsize: 12
+nocite: '@*'
+---
+
+```{r setup, include = FALSE}
+path <- "~/Dropbox/BA18/data/"
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, results = FALSE,  tidy = TRUE, tidy.opts = list(width.cutoff = 60), fig.pos = "h", fig.height = 3.5)
+```
+
+```{r read_source_code, echo = FALSE, cache = FALSE}
+knitr::read_chunk(paste0(path, "../R-Code/", "prepare_data.R"))
+knitr::read_chunk(paste0(path, "../R-Code/", "normality_assumption.R"))
+knitr::read_chunk(paste0(path, "../R-Code/", "distribution_fitting.R"))
+knitr::read_chunk(paste0(path, "../R-Code/", "allocate_assets.R"))
+```
+
+```{r load_packages, echo = FALSE}
+library(ghyp) # used for modelling skewed generalized hyperbolic functions
+library(car) # used for quantile-quantile plots
+library(dplyr) # used for data handling
+library(tidyr) # used for data handling
+library(nortest) # used for anderson-darling normality test
+library(lubridate) # used for datetime handling
+library(kableExtra) # used for table visualization
+library(ggplot2) # used for data visualization
+library(ggthemes) # used for data visualization
+library(gridExtra) # used for data visualization
+library(textreadr) # used for compiling text documents
+library(zoo) # used for time series handling
+library(MASS) # used for simulating bivariate normal distribution
+library(fGarch) # used for estimating conditional volatility
+```
+
+```{r load_data, echo = FALSE}
+load(paste0(path, "log.return.assets.Rdata"))
+load(paste0(path, "fitted.parameters.Rdata"))
+load(paste0(path, "allocation.Rdata"))
+load(paste0(path, "opt.weights.Rdata"))
+assets.names <- c("DIJA", "S&P 500", "10Y US Treasury Futures", "JPY/USD", "Gold")
+```
+
+# Introduction
+## Objectives
+```{r, echo = FALSE, results = "asis"}
+introduction <- read_docx(paste0(path, "../text/introduction.docx"))
+cat(introduction[1:3], sep = "\n", fill =  TRUE)
+```
+
+## Background
+```{r, echo = FALSE, results = "asis"}
+cat(introduction[4:length(introduction)], sep = "\n", fill = TRUE)
+```
+
+# Review
+## Statistical measurements
+### Log-Returns
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/log_returns.docx")), sep = "\n", fill = TRUE)
+```
+
+### Risk Measures
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/risk_metrics.docx")), sep = "\n", fill = TRUE)
+```
+
+#### Volatility
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/volatility.docx")), sep = "\n", fill = TRUE)
+```
+
+#### Value-at-Risk
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/value_at_risk.docx")), sep = "\n", fill = TRUE)
+```
+
+#### Expected Shortfall
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/expected_shortfall.docx")), sep = "\n", fill = TRUE)
+```
+
+### Heavy Tails
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/heavy_tails.docx")), sep = "\n", fill = TRUE)
+```
+
+### Skewness
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/skewness.docx")), sep = "\n", fill = TRUE)
+```
+
+## Distributions
+### Normal Distribution
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/normal_distribution.docx")), sep = "\n", fill = TRUE)
+```
+
+### Student's t-Distribution
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/student_t_distribution.docx")), sep = "\n", fill = TRUE)
+```
+
+### Generalized Inverse Gaussian Distribution
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/generalized_inverse_gaussian_distribution.docx")), sep = "\n", fill = TRUE)
+```
+
+### Generalized Hyperbolic Distribution
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/generalized_hyperbolic_distribution.docx")), sep = "\n", fill = TRUE)
+```
+
+### Skewed Student's t-Distribution
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/skew_student_t_distribution.docx")), sep = "\n", fill = TRUE)
+```
+
+### Copulas
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/statistics/t_copula.docx")), sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, fig.cap = "Log-density of Gaussian copula vs. Student's t-copula with $\\rho = 0.5, \\nu = 2.5$"}
+x <- seq(-10, 10, by = 0.1)
+y <- x
+n <- gauss(mu = rep(0, 2), sigma = matrix(c(1, 0.5, 0.5, 1), ncol = 2, byrow = TRUE))
+t <- student.t(nu = 2.5, mu = rep(0, 2), sigma = matrix(c(1, 0.5, 0.5, 1), ncol = 2, byrow = TRUE), gamma = rep(0, 2))  
+norm <- function(x, y){dghyp(cbind(x, y), object = n, logvalue = TRUE) - dghyp(x, object = n[1], logvalue = TRUE) - dghyp(y, object = n[2], logvalue = TRUE)}
+tn <- function(x, y){dghyp(cbind(x, y), object = t, logvalue = TRUE) - dghyp(x, object = t[1], logvalue = TRUE) - dghyp(y, object = t[2], logvalue = TRUE)}
+z.norm <- outer(x, y, norm)
+z.t <- outer(x, y, tn)
+par(mfrow = c(1, 2))
+contour(x, y, z.norm, main = "Gaussian copula")
+contour(x, y, z.t, main = "Student's t-copula")
+```
+
+```{r, echo = FALSE, fig.cap = "Log-density of Gaussian copula vs. Student's t-copula with $\\rho = 0, \\nu = 2.5$"}
+x <- seq(-10, 10, by = 0.1)
+y <- x
+n <- gauss(mu = rep(0, 2), sigma = diag(2))
+t <- student.t(nu = 2.5, mu = rep(0, 2), sigma = diag(2), gamma = rep(0, 2))  
+norm <- function(x, y){dghyp(cbind(x, y), object = n, logvalue = TRUE) - dghyp(x, object = n[1], logvalue = TRUE) - dghyp(y, object = n[2], logvalue = TRUE)}
+tn <- function(x, y){dghyp(cbind(x, y), object = t, logvalue = TRUE) - dghyp(x, object = t[1], logvalue = TRUE) - dghyp(y, object = t[2], logvalue = TRUE)}
+z.norm <- outer(x, y, norm)
+z.norm[1:nrow(z.norm), 1:ncol(z.norm)] <- 0
+z.t <- outer(x, y, tn)
+par(mfrow = c(1, 2))
+contour(x, y, z.norm, main = "Gaussian copula")
+contour(x, y, z.t, main = "Student's t-copula")
+```
+
+## Portfolio Optimization (Mean-Variance Analysis)
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/finance/mean_variance.docx")), sep = "\n", fill = TRUE)
+```
+
+## R - Statistical Programming Language
+```{r, echo = FALSE, results = "asis"}
+r.doc <- read_docx(paste0(path, "../text/r.docx"))
+cat(r.doc, sep = "\n", fill = TRUE)
+```
+
+## GARCH Model
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/GARCH.docx")), sep = "\n", fill = TRUE)
+```
+
+## MCECM Algorithm
+```{r, echo = FALSE, results = "asis"}
+cat(read_docx(paste0(path, "../text/MCEM.docx")), sep = "\n", fill = TRUE)
+```
+
+# Analysis
+## Modelling Market Data
+```{r, echo = FALSE, results = "asis"}
+normality.asumption <- read_docx(paste0(path, "../text/normality_assumption.docx"))
+cat(normality.asumption[1:6], sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, results = "asis"}
+mat <- data.frame("Asset Name" = c("DIJA", "S&P500", "US 10-Year Treasury Note", "JPY/USD Currency Pair",
+                                   "Gold"),
+                  "Class" = c(rep("Equities", 2), rep("Fixed income (bonds)", 1), rep("Foreign exchange", 1), rep("Commodities", 1)),
+                  "Description" = c("Stock market index of of 30 large, publicly owned companies in the United States.", "Stock market index of 500 large-capitalization companies", "US government debt issued by the Department of the Treasury", "Exchange rate of US dollars against one Japanese yen", ""))
+kable(mat, caption = "Description of data") %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+### Heavy Tails and Asymmetry
+```{r, echo = FALSE, results = "asis"}
+cat(normality.asumption[7])
+```
+
+```{r, echo = FALSE, fig.cap = "Quantile-Quantile plots of daily, standardized S&P500 and JPY/USD log-returns"}
+par(mfrow = c(1, 2))
+qqPlot(assets$SP500 %>% scale(), ylab = "sample quantiles", main = "S&P500")
+qqPlot(assets$JPY_USD %>% scale(), ylab = "sample quantiles", main = "JPY/USD")
+```
+
+```{r, echo = FALSE, results = "asis"}
+z <- round(cor(assets[, 2:ncol(assets)]), digits = 2)
+colnames(z) <- c("DIJA", "S\\&P500", "10Y US Bond Futures", "JPY/USD", "Gold")
+rownames(z) <- colnames(z)
+kable(z, caption = "Correlation of daily log-returns of various assets", escape = FALSE) %>%  kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+t <- z*sqrt(nrow(assets - 2))/sqrt(1 - z^2)
+t <- round(t, digits = 2)
+q <- qt(0.975, df = nrow(assets) - 2)
+t <- as.data.frame(t) %>% mutate_all(~cell_spec(.x, bold = ifelse(.x < -q | .x > q, TRUE, FALSE)))
+rownames(t) <- rownames(z)
+kable(t, caption = "T-statistics of two-sided t-test to the 95\\%-significance level for the correlations (significant values are highlighted bold)", escape = FALSE) %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+### Volatility Clustering
+```{r, echo = FALSE, results = "asis"}
+cat(normality.asumption[8])
+```
+
+```{r, echo = FALSE, fig.cap = "Auto-correlation plot of daily, absolute standardized S&P500 log-returns and time series plot of daily, standardized S&P500 log-returns highlighting the 2008 financial crisis from 01.01.2007 to 01.01.2010"}
+par(mfrow = c(1, 2))
+acf(assets$SP500 %>% scale() %>% abs(), main = "")
+z <- zoo(assets$SP500 %>% scale(), order.by = assets$Date)
+plot(z, xlab = "Date", ylab = "S&P500")
+abline(v = as.Date("2007-01-01"), col = 2)
+abline(v = as.Date("2010-01-01"), col = 2)
+```
+
+```{r, echo = FALSE, fig.cap = "Volatility clustering in normally distributed sample vs. S&P500 log-returns highlighting the 2008 financial crisis from 01.01.2007 to 01.01.2010"}
+set.seed(100)
+par(mfrow = c(1, 2))
+garch.norm <- garchFit(data = rnorm(1e4) %>% scale())
+garch.sp500 <- garchFit(data = assets$SP500 %>% scale())
+plot(zoo(garch.norm@sigma.t), ylab = "Estimated volatility")
+plot(zoo(garch.sp500@sigma.t, order.by = assets$Date), xlab = "Time", ylab = "Estimated volatility")
+abline(v = as.Date(c("2007-01-01", "2010-01-01")), col = 2)
+```
+
+### Tail Correlation 
+```{r, echo = FALSE, results = "asis"}
+cat(normality.asumption[9])
+```
+
+```{r, echo = FALSE, fig.cap = "Tail correlations of S&P500 vs. two normally distributed samples"}
+set.seed(100)
+par(mfrow = c(1, 2))
+temp <- assets[, c(3, 4)] %>% scale()
+plot(temp, xlim = c(-10, 10), ylim = c(-10, 10), ylab = "10Y US Bonds Futures")
+abline(h = c(3, -3), v = c(3, -3))
+temp <- rghyp(1e4, gauss(mu = rep(0, 2))) %>% scale()
+plot(temp, xlim = c(-5, 5), ylim = c(-5, 5), xlab = "sample 1", ylab = "sample 2")
+abline(h = c(3, -3), v = c(3, -3))
+```
+
+### Gauss Optimization
+```{r, echo = FALSE, results = "asis"}
+cat(normality.asumption[10:(length(normality.asumption) - 1)], sep = "\n", fill = TRUE)
+```
+
+### Aggregated Log-returns
+```{r, echo = FALSE, results = "asis"}
+cat(normality.asumption[length(normality.asumption)], sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, fig.cap = "Quantile-Quantile plots of yearly, standardized S&P500 and JPY/USD log-returns"}
+assets.yearly <- assets %>% group_by(Year = year(Date)) %>% summarise(SP500 = sum(SP500), JPY_USD = sum(JPY_USD))
+par(mfrow = c(1, 2))
+qqPlot(assets.yearly$SP500 %>% scale(), ylab = "sample quantiles", main = "S&P500")
+qqPlot(assets.yearly$JPY_USD %>% scale(), ylab = "sample quantiles", main = "JPY/USD")
+```
+
+## Distribution Fitting
+```{r, echo = FALSE, results = "asis"}
+distribution.fitting <- read_docx(paste0(path, "../text/distribution_fitting.docx"))
+cat(distribution.fitting[1])
+```
+
+```{r, echo = FALSE, fig.cap = "Comparing the log-density for different distributions"}
+q <- seq(-10, 10, by = 1e-2)
+plot(q, dnorm(q, log = TRUE), type = "l", xlab = "x", ylab = "Log-density")
+lines(q, dt(q, df = 3, ncp = 0, log = TRUE), col = 2)
+lines(q, dt(q, df = 10, ncp = 0, log = TRUE), col = 3)
+lines(q, dt(q, df = 30, ncp = 0, log = TRUE), col = 4)
+legend("bottom", legend = c("std. normal distribution", "Student's t-distribution: 3 df", "Student's t-distribution: 10 df", "Student's t-distribution: 30 df"), col = 1:4, lty = 1, cex = 0.5, bg = "white")
+```
+
+```{r, echo = FALSE, fig.cap = "Quantile-Quantile plots of daily, standardized S&P500 and JPY/USD log-returns"}
+par(mfrow = c(1, 2))
+qqPlot(assets$SP500 %>% scale(), "t", df = 3, ylab = "sample quantiles", main = "S&P500")
+qqPlot(assets$JPY_USD %>% scale(), "t", df = 4, ylab = "sample quantiles", main = "JPY/USD")
+```
+
+```{r, echo = FALSE, results = "asis"}
+cat(distribution.fitting[2])
+```
+
+```{r, echo = FALSE, fig.cap = "Graphical analysis of the lower and the upper tail regarding the fitted parameters of the univariate skewed Student's t-distribution for the S&P500"}
+temp <- apply(assets[, 2:ncol(assets)], 2, scale)
+temp <- apply(temp, 2, FUN = function(x) x[order(x)])
+N <- nrow(temp)
+fit.sp500 <- fit.tuv(temp[, 2], silent = TRUE)
+fit.sp500.symm <- fit.tuv(temp[, 2], symmetric = TRUE, silent = TRUE)
+fit.jpy <- fit.tuv(temp[, 4], silent = TRUE)
+fit.jpy.symm <- fit.tuv(temp[, 4], symmetric = TRUE, silent = TRUE)
+par(mfrow = c(1, 2))
+plot(log(1:N/(N + 1))~temp[, 2], xlim = c(min(temp[, 2]), 0), xlab = "S&P500", ylab = "log(P(X<x)")
+lines(log(pghyp(temp[, 2], object = fit.sp500))~temp[, 2], col = 2)
+lines(log(pghyp(temp[, 2], object = fit.sp500.symm))~temp[, 2], col = 3)
+lines(log(pnorm(temp[, 2], mean = mean(temp[, 2]), sd = sd(temp[, 2])))~temp[, 2], col = 4)
+legend("topleft", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+plot(log((N + 1 - 1:N)/(N + 1))~temp[, 2], xlim = c(0, max(temp[, 2])), xlab = "S&P500", ylab = "log(1 - P(X<x))")
+lines(log(1 - pghyp(temp[, 2], object = fit.sp500))~temp[, 2], col = 2)
+lines(log(1 - pghyp(temp[, 2], object = fit.sp500.symm))~temp[, 2], col = 3)
+lines(log(1 - pnorm(temp[, 2], mean = mean(temp[, 2]), sd = sd(temp[, 2])))~temp[, 2], col = 4)
+legend("topright", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+```
+
+```{r, echo = FALSE, fig.cap = "Graphical analysis of the lower and the upper tail regarding the fitted parameters of the univariate skewed Student's t-distribution for the JPY/USD"}
+par(mfrow = c(1, 2))
+plot(log(1:N/(N + 1))~temp[, 4], xlim = c(min(temp[, 4]), 0), xlab = "JPY/USD", ylab = "log(P(X<x))")
+lines(log(pghyp(temp[, 4], object = fit.jpy))~temp[, 4], col = 2)
+lines(log(pghyp(temp[, 4], object = fit.jpy.symm))~temp[, 4], col = 3)
+lines(log(pnorm(temp[, 4], mean = mean(temp[, 4]), sd = sd(temp[, 4])))~temp[, 4], col = 4)
+legend("topleft", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+plot(log((N + 1 - 1:N)/(N + 1))~temp[, 4], xlim = c(0, max(temp[, 4])), xlab = "JPY/USD", ylab = "log(1 - P(X<x))")
+lines(log(1 - pghyp(temp[, 4], object = fit.jpy))~temp[, 4], col = 2)
+lines(log(1 - pghyp(temp[, 4], object = fit.jpy.symm))~temp[, 4], col = 3)
+lines(log(1 - pnorm(temp[, 4], mean = mean(temp[, 4]), sd = sd(temp[, 4])))~temp[, 4], col = 4)
+legend("topright", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+```
+
+```{r, echo = FALSE, results = "asis"}
+log.lik.sp500 <- lik.ratio.test(fit.sp500, fit.sp500.symm)
+log.lik.jpy <- lik.ratio.test(fit.jpy, fit.jpy.symm)
+log.lik.mat <- matrix(c(log.lik.sp500$p.value, log.lik.jpy$p.value), ncol = 2, byrow = TRUE)
+rownames(log.lik.mat) <- "P-value"
+colnames(log.lik.mat) <- c("S&P500", "JPY/USD")
+kable(log.lik.mat, caption = "P-values of the log-likelihood ratio test for the SP500 and the JPY/USD") %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+alphas <- c(0.001, 0.005, 0.01)
+viols <- matrix(NA, nrow = 3, ncol = length(alphas))
+rownames(viols) <- c("Gaussian", "Symmetric Student's t", "Skewed Student's t")
+colnames(viols) <- alphas
+k <- 1
+temp <- assets$SP500 %>% scale()
+for(alpha in alphas){
+  viols.t <- temp < qghyp(alpha, object = fit.sp500)
+  viols.symm <- temp < qghyp(alpha, object = fit.sp500.symm)
+  viols.norm <- temp < qnorm(alpha)
+  viols[1, k] <- sum(viols.norm)
+  viols[2, k] <- sum(viols.symm)
+  viols[3, k] <- sum(viols.t)
+  k <- k + 1
+}
+viols <- as.data.frame(viols) 
+rownames(viols) <- c("Gaussian", "Symmetric Student's t", "Skewed Student's t")
+kable(viols, caption = "Observed number of violations of SP500 log-returns against 1-day value-at-risk forecast (lower tail)", escape = FALSE) %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+p.values <- viols
+for(i in 1:nrow(p.values)){
+  for(j in 1:ncol(p.values)){
+    p.values[i, j] <- binom.test(viols[i, j], nrow(assets), alphas[j], alternative = "greater")$p.value
+  }
+}
+p.values <- round(p.values, digits = 3)
+p.values <- as.data.frame(p.values) %>% mutate_all(~cell_spec(.x, bold = ifelse(.x < 0.05, TRUE, FALSE)))
+rownames(p.values) <- rownames(viols)
+p.values %>%
+  kable(caption = "P-values of binomial test of SP500 log-returns against 1-day value-at-risk forecast (lower tail)",
+         escape = FALSE) %>%
+  kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+alphas <- c(0.001, 0.005, 0.01)
+viols <- matrix(NA, nrow = 3, ncol = length(alphas))
+rownames(viols) <- c("Gaussian", "Symmetric Student's t", "Skewed Student's t")
+colnames(viols) <- 1 - alphas
+k <- 1
+temp <- assets$JPY_USD %>% scale()
+for(alpha in alphas){
+  viols.t <- temp > qghyp(1 - alpha, object = fit.jpy)
+  viols.symm <- temp > qghyp(1 - alpha, object = fit.jpy.symm)
+  viols.norm <- temp > qnorm(1 - alpha)
+  viols[1, k] <- sum(viols.norm)
+  viols[2, k] <- sum(viols.symm)
+  viols[3, k] <- sum(viols.t)
+  k <- k + 1
+}
+viols <- as.data.frame(viols)
+rownames(viols) <- c("Gaussian", "Symmetric Student's t", "Skewed Student's t")
+kable(viols, caption = "Observed number of violations of JPY/USD log-returns against 1-day value-at-risk forecast (upper tail)", escape = FALSE) %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+p.values <- viols
+for(i in 1:nrow(p.values)){
+  for(j in 1:ncol(p.values)){
+    p.values[i, j] <- binom.test(viols[i, j], nrow(assets), alphas[j], alternative = "greater")$p.value
+  }
+}
+p.values <- round(p.values, digits = 3)
+p.values <- as.data.frame(p.values) %>% mutate_all(~cell_spec(.x, bold = ifelse(.x < 0.05, TRUE, FALSE)))
+rownames(p.values) <- rownames(viols)
+p.values %>%
+  kable(caption = "P-values of binomial test of JPY/USD log-returns against 1-day value-at-risk forecast (upper tail)",
+         escape = FALSE) %>%
+  kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+```{r, echo = FALSE, results = "asis"}
+cat(distribution.fitting[3:length(distribution.fitting)], sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, results = "asis"}
+mat <- matrix(apply(params, 1, FUN = function(x) paste0(round(mean(x), digits = 3), "$\\pm$", round(sd(x), digits = 3))), nrow = 1)
+colnames(mat) <- c("$\\nu$", "$\\gamma_{DIJA}$", "$\\gamma_{SP500}$", "$\\gamma_{10Y US Bonds}$",
+                   "$\\gamma_{JPY/USD}$", "$\\gamma_{Gold}$")
+kable(mat, escape = FALSE, caption = "Bootstrap estimated parameters for a multivariate skewed Student's t-distribution (N = 100)") %>% kable_styling(full_width = TRUE, latex_options = "HOLD_position")
+```
+
+## Portfolio Optimization and the Role of the Investment Horizon
+### Brief Introduction
+```{r, echo = FALSE, results = "asis"}
+brief.introduction <- read_docx(paste0(path, "../text/overview.docx"))
+cat(brief.introduction, sep = "\n", fill = TRUE)
+```
+
+### Univariate symmetric Student's t-distribution
+```{r, echo = FALSE, results = "asis"}
+allocation <- read_docx(paste0(path, "../text/portfolio_optimization.docx"))
+cat(allocation[1:11], sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, fig.cap = "Weight allocation in a portfolio of Student's t-distributed assets"}
+colnames(weights) <- sapply(strsplit(colnames(weights), "="), FUN = function(x) x[[2]])
+weights <- as.data.frame(weights)
+weights$Horizon <- rownames(weights)
+weights <- weights %>% gather(DoF, Weight, 1:(ncol(weights) - 1))
+weights$DoF <- factor(weights$DoF, levels = unique(weights$DoF))
+weights$Horizon <- factor(weights$Horizon, levels = c("daily", "weekly", "monthly", "yearly"))
+ggplot(weights, aes(x = Horizon, y = Weight, fill = DoF))+
+  geom_bar(stat = "identity")+
+  theme_classic()
+```
+
+### Multivariate skewed Student's t-distribution
+```{r, echo = FALSE, results = "asis"}
+cat(allocation[12:length(allocation)], sep = "\n", fill = TRUE)
+```
+
+```{r, echo = FALSE, fig.cap = "Graphical analysis of the portfolio optimization"}
+ggplot(opt.weights, aes(x = Days, y = Weight, fill = Asset))+
+  geom_area()+
+  scale_x_log10()+
+  theme_classic()
+```
+
+# Discussion
+```{r, echo = FALSE, results = "asis"}
+conclusion <- read_docx(paste0(path, "../text/conclusion.docx"))
+cat(conclusion, sep = "\n", fill = TRUE)
+```
+
+# Appendix {-}
+
+# Source Code {-}
+## Data preparation {-}
+```{r prepare_data.R, eval = FALSE}
+
+```
+
+## Normality assumption {-}
+```{r normality_assumption.R, eval = FALSE}
+
+```
+
+## Multivariate distribution fitting {-}
+```{r distribution_fitting.R, eval = FALSE}
+
+```
+
+## Asset allocation {-}
+```{r allocate_assets.R, eval = FALSE}
+
+```
+
+\listoffigures
+
+\listoftables
+
+# References {-}
+
+
+
+
+
+
+

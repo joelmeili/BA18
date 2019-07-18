@@ -1,0 +1,45 @@
+---
+output:
+  pdf_document: beamer_presentation
+  html_document: default
+---
+
+
+## Standard Deviation as a Risk Measure
+- Risk quantified by movements from the mean (volatility)
+- Misleading indication of potential losses
+- No level of confidence
+
+## Mean-Variance Analysis
+Advantages:
+
+- Easy computation
+- Explicit results (weights)
+
+Disadvantges:
+
+- Drawbacks of standard deviation as a risk measure
+- No consideration of desired investment horizon 
+
+## Fat Tails in Financial Returns: Basics
+- Extreme movements are relatively frequent (compared to thin-tailed distribution)
+- Thin-tailed distributions decay like $O(e^{-\lambda|x|}), \lambda \in \mathbb{R}_{>0}$
+- Fat-tailed distributions decay like $O(|x|^{-\alpha}), \alpha \in \mathbb{R}_{>0}$
+- Thin-tailed or fat-tailed model: choice can make huge diffeence in portfolio optimization
+
+##Fat Tails in Financial Returns: Illustration
+
+
+## Conclusion
+- Assumption of normality is invalid (especially short-term)
+- Skewness and kurtosis relevant quanttities in portfolio optimization
+- SST distribution good proxy for returns
+- SST copula introduces tail correlation
+- Long-term investors can take more tail risks
+
+## Discussion
+Thank you for your attention!
+
+- Q&A
+- Suggestions
+- Feedback

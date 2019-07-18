@@ -1,0 +1,20 @@
+General:
+- less general / sentences without meaning -> leave out
+
+Structure:
+DONE - change literature review to review
+DONE - 1. Risk & return measures incl. log-returns, heavy tails and skewness 2. Distributions 3. Mean-Variance (Markowitz)
+DONE - more text for markowitz summary
+
+Review:
+DONE - Normal distribution = first cumulative functions etc. then information about quantiles
+DONE - Student's distribution = it is not always zero centered
+DONE - for all distributions = explain how the tails fall e.g. e^2 or power law, for skew t one tail is exponential one tail is power law
+DONE - inverse gaussian before ghyp
+DONE - copula, contour plot for t-copula vs. normal copula
+
+Analysis:
+DONE - Estimating with bootstrapping parameters
+DONE - Vola clustering as own paragraph with own section
+DONE - sub sections for thought processes
+

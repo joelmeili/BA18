@@ -1,0 +1,273 @@
+---
+title: "Bachelor's Thesis Presentation"
+subtitle: "The Influence of the Investment Horizon on the Asset Allocation"
+author: "Joël Meili & Fabio Bührer"
+institute: Zurich University of Applied Sciences Winterthur
+date: "July 1st 2019"
+output:
+  beamer_presentation:
+    slide_level: 2
+    theme: "AnnArbor"
+    colortheme: "dolphin"
+    fonttheme: "structurebold"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, results = FALSE, fig.height = 4)
+```
+
+```{r load_libraries}
+library(car)
+library(ghyp)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(ggthemes)
+library(kableExtra)
+```
+
+```{r load_data}
+path <- "~/Dropbox/BA18/data/"
+load(paste0(path, "log.return.assets.Rdata"))
+load(paste0(path, "params.symm.Rdata"))
+load(paste0(path, "fitted.parameters.Rdata"))
+load(paste0(path, "allocation.Rdata"))
+load(paste0(path, "opt.weights.Rdata"))
+assets.yearly <- assets %>% gather(Asset, Value, 2:ncol(assets)) %>% group_by(Year = year(Date), Asset) %>% summarise(Value = sum(Value)) %>% spread(2, 3)
+```
+
+## Contents
+- Goals of research
+- Aspects of portfolio optimization
+- Problems with the normality assumption
+- Parameter fitting of financial log-returns
+- Results
+- Conclusion
+- Discussion
+
+## Goals of the Research
+- Understand the role of the investment horizon in portfolio allocation
+- Establishing a risk measure
+- Building a model for the evolution of assets' value
+- Modeling fat tails of financial assets
+
+# Aspects of Portfolio Optimization
+## Risk Measures
+### Standard deviation
+- Risk quantified by movements from the mean (volatility), no level of confidence applicable
+- Does not capture skewness or kurtosis (fat tails), but is coherent
+
+### Value-at-risk
+- Intuitive indication of potential losses, level of confidence applicable
+- Does capture skewness and kurtosis (fat tails), but is not coherent
+
+### Expected shortfall
+- Intuitive indication of potential losses, level of confidence applicable
+- Does capture skewness and kurtosis (fat tails) and is coherent
+
+### Our solution in this thesis
+- Use value-at-risk or expected shortfall as risk measures
+
+## Mean-Variance Analysis
+
+### What is mean-variance analysis
+- Optimization of weights to find efficient frontier (lowest portfolio standard deviation for given portfolio return)
+
+### Advantages
+- Easy computation
+- Explicit results (weights)
+
+### Disadvantages
+- Drawbacks of standard deviation as a risk measure
+- No consideration of desired investment horizon
+
+## Fat Tails in Financial Returns: Basics
+- In fat-tailed data, extreme movements are relatively frequent (compared to thin-tailed distribution)
+- Thin-tailed distributions decay like $O(e^{-\lambda|x|}), \lambda \in \mathbb{R}_{>0}$
+- Fat-tailed distributions decay like $O(|x|^{-\alpha}), \alpha \in \mathbb{R}_{>0}$
+- Thin-tailed or fat-tailed model: choice can make huge difference in portfolio optimization
+
+### Heavy-tailed
+- Distributions are called "heavy-tailed" or "fat-tailed" when the tails decay like a power law $O(|x|^{-\alpha}), \alpha \in \mathbb{R}_{>0}$
+
+### Our solution in this thesis
+
+- Use of the Student's t-distribution and generalized hyperbolic distributions
+
+# Problems with the Normality Assumption
+## Kurtosis and Skewness of Log-Returns
+- Log-returns are often heavy tailed (kurtosis) especially for short-term horizons
+- Stocks are usually negatively skewed and safe haven instruments e.g. JPY/USD are usually positively skewed
+
+```{r, echo = FALSE}
+par(mfrow = c(1, 2))
+qqPlot(assets$SP500 %>% scale(), ylab = "sample quantile", main = "Daily S&P500 log-returns")
+qqPlot(assets$JPY_USD %>% scale(), ylab = "sample quantile", main = "Daily JPY/USD log-returns")
+```
+
+## Kurtosis and Skewness of Log-Returns
+- Effect of kurtosis is reduced significantly when the horizon is increased (aggregated log-returns)
+- Assumption of normally distributed log-returns seems appropriate
+
+```{r, echo = FALSE}
+par(mfrow = c(1, 2))
+qqPlot(assets.yearly$SP500%>% scale(), ylab = "sample quantile", main = "Yearly S&P500 log-returns")
+qqPlot(assets.yearly$JPY_USD %>% scale(), ylab = "sample quantile", main = "Yearly JPY/USD log-returns")
+```
+
+## Tail Correlation (Gaussian vs. Student's t Copula)
+- Multivariate log-return modelling implies tail correlation
+- Tail correlation incorporates nonlinear dependencies that cannot be modeled solely with the covariance matrix
+
+### Bivariate Gaussian Probability Density
+$$f(\vec{x})=\frac{1}{2\pi}\det{\Sigma}^{-\frac{1}{2}}e^{-\frac{1}{2}(\vec{x}-\vec{\mu})'\Sigma^{-1}(\vec{x}-\vec{\mu})}$$
+Where $\mu$ is the location vector and $\Sigma$ is the covariance matrix.
+
+### Bivariate Student's t Probability Density
+$$f(\vec{x})=\frac{\Gamma{\frac{\nu+2}{2}}}{\Gamma{\frac{\nu}{2}}\nu\pi|\Sigma|^{\frac{1}{2}}}[1+\frac{1}{\nu}(\vec{x}-\vec{\mu})^T\Sigma^{-1}(\vec{x}-\vec{\mu)}]^{-\frac{(\nu+2)}{2}}$$
+Where $\Gamma$ is the gamma function and $\nu$ is the degrees of freedom parameter.
+
+## Tail Correlation (Gaussian vs. Student's t Copula)
+- The probability density function of a copula is defined by the Sklar's theorem
+- The Gaussian copula diverges only in two of the corners whereas the Student's t copula diverges in all four corners
+
+#### Sklar's Theorem
+$$c(\vec{x})=\frac{f(\vec{x})}{\overline{f}(x_1)\overline{f}(x_2)}$$
+Where $\overline{f}(x)$ is the univariate probability density function.
+
+## Tail Correlation (Gaussian vs. Student's t Copula)
+```{r, echo = FALSE}
+x <- seq(-10, 10, by = 0.1)
+y <- x
+n <- gauss(mu = rep(0, 2), sigma = matrix(c(1, 0.5, 0.5, 1), ncol = 2, byrow = TRUE))
+t <- student.t(nu = 2.5, mu = rep(0, 2), sigma = matrix(c(1, 0.5, 0.5, 1), ncol = 2, byrow = TRUE), gamma = rep(0, 2))  
+norm <- function(x, y){dghyp(cbind(x, y), object = n, logvalue = TRUE) - dghyp(x, object = n[1], logvalue = TRUE) - dghyp(y, object = n[2], logvalue = TRUE)}
+tn <- function(x, y){dghyp(cbind(x, y), object = t, logvalue = TRUE) - dghyp(x, object = t[1], logvalue = TRUE) - dghyp(y, object = t[2], logvalue = TRUE)}
+z.norm <- outer(x, y, norm)
+z.t <- outer(x, y, tn)
+par(mfrow = c(1, 2))
+contour(x, y, z.norm, main = "Gaussian log-copula")
+contour(x, y, z.t, main = "Student's t log-copula")
+```
+
+# Parameter Fitting of Financial Log-Returns
+## Univariate Symmetric Student's t-Distribution
+- Fitted univariate symmetric Student's t-distributions to financial assets using a likelihood maximization algorithm described in the GHYP-package (\url{https://CRAN.R-project.org/package=ghyp})
+- Bootstrapped N = 100 samples to evaluate confidence interval for estimates of $\nu$
+
+```{r, results = "asis"}
+mu <- apply(params.symm, 2, mean)
+sig <- apply(params.symm, 2, sd)
+mat <- sapply(1:ncol(params.symm), FUN = function(x){
+  mu[x] + c(-1, 0, 1)*sig[x]
+})
+colnames(mat) <- c("$\\nu_{DIJA}$", "$\\nu_{S\\&P500}$", "$\\nu_{10Y US Bond Futures}$", "$\\nu_{JPY/USD}$", "$\\nu_{GOLD}$")
+rownames(mat) <- c("$\\overline{\\mu}-\\overline{\\sigma}$", "$\\overline{\\mu}$", "$\\overline{\\mu}+\\overline{\\sigma}$")
+mat <- round(mat, digits = 3)
+kable(mat, escape = FALSE) %>% kable_styling()
+```
+
+## Symmetric vs. Skewed Student's t-Distribution
+- Both variants have fat-tailed distributions
+- Symmetric Student's t-distribution does not allow intrinsic skewness of some instruments
+- Skewed Student's t-distribution is a generalized version of symmetric distribution
+- Skewed Student's t-distribution's skewness parameter dictates degree of asymmetry
+- Negative skewness: left tail is fatter (risky assets)
+- Positive skewness: right tail is fatter (hedge assets)
+
+## Graphical Assessment of Goodness of Fit for Univariate Skewed Student's t-Distribution
+- Skewed Student's t-distribution captures extreme events in the tails better than symmetric Student's t-distribution
+- Graphical assessment provides further motivation for the use of the skewed Student's t-distribution
+
+```{r}
+temp <- apply(assets[, 2:ncol(assets)], 2, scale)
+temp <- apply(temp, 2, FUN = function(x) x[order(x)])
+N <- nrow(temp)
+fit.sp500 <- fit.tuv(temp[, 2], silent = TRUE)
+fit.sp500.symm <- fit.tuv(temp[, 2], symmetric = TRUE, silent = TRUE)
+fit.jpy <- fit.tuv(temp[, 4], silent = TRUE)
+fit.jpy.symm <- fit.tuv(temp[, 4], symmetric = TRUE, silent = TRUE)
+par(mfrow = c(1, 2))
+plot(log(1:N/(N + 1))~temp[, 2], xlim = c(min(temp[, 2]), 0), xlab = "S&P500", ylab = "log(P(X<x)")
+lines(log(pghyp(temp[, 2], object = fit.sp500))~temp[, 2], col = 2)
+lines(log(pghyp(temp[, 2], object = fit.sp500.symm))~temp[, 2], col = 3)
+lines(log(pnorm(temp[, 2], mean = mean(temp[, 2]), sd = sd(temp[, 2])))~temp[, 2], col = 4)
+legend("topleft", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+plot(log((N + 1 - 1:N)/(N + 1))~temp[, 2], xlim = c(0, max(temp[, 2])), xlab = "S&P500", ylab = "log(1 - P(X<x))")
+lines(log(1 - pghyp(temp[, 2], object = fit.sp500))~temp[, 2], col = 2)
+lines(log(1 - pghyp(temp[, 2], object = fit.sp500.symm))~temp[, 2], col = 3)
+lines(log(1 - pnorm(temp[, 2], mean = mean(temp[, 2]), sd = sd(temp[, 2])))~temp[, 2], col = 4)
+legend("topright", legend = c("sample", "skewed t", "symmetric t", "normal"), col = 1:4, lty = 1, cex = 0.5)
+```
+
+## Multivariate Skewed Student's t-Distribution
+- Fitted a multivariate skewed Student's t-distribution to financial assets using an expectation maximization algorithm described in the GHYP-package (\url{https://CRAN.R-project.org/package=ghyp})
+- Again bootstrapped N = 100 samples to evaluate confidence interval for the parameter estimates
+
+```{r, results = "asis"}
+mu <- apply(params, 1, mean)
+sig <- apply(params, 1, sd)
+mat <- sapply(1:nrow(params), FUN = function(x){
+  mu[x] + c(-1, 0, 1)*sig[x]
+})
+colnames(mat) <- c("$\\nu$", "$\\gamma_{DIJA}$", "$\\gamma_{S\\&P500}$", "$\\gamma_{10Y US Bond Futures}$", "$\\gamma_{JPY/USD}$", "$\\gamma_{GOLD}$")
+rownames(mat) <- c("$\\overline{\\mu}-\\overline{\\sigma}$", "$\\overline{\\mu}$", "$\\overline{\\mu}+\\overline{\\sigma}$")
+mat <- round(mat, digits = 3)
+kable(mat, escape = FALSE) %>% kable_styling()
+```
+
+# Results
+## Portfolio Optimiztion Using Normal and Non-Normal Distributions
+- Optimal portfolio weights are the same for normal and non-normal distributions as long as standard deviation is used as risk measure (same variance for distributions), independent of horizon
+- Optimal portfolio weights are the same for standard deviation, value-at-risk or expected shortfall optimized portfolio when normal distributions are used, independent of horizon
+- Different portfolio weights when non-normal distributions and value-at-risk or expected shortfall are used as risk measure, dependent of horizon
+
+## Monte Carlo Simulation of Univariate Symmetric Student's t-Distributed Log-Returns
+- Value-at-risk optimization for simulated univariate symmetric Student's t-distributed log-returns
+- Used aggregated log-returns and adjusted value-at-risk level ($\alpha=1-\frac{\tau}{26000}$)
+
+### Relationship between $\tau$ and $\alpha$
+- $\alpha$ is chosen to cover losses that occur once in a century for each $\tau$, such that results are comparable
+
+## Monte Carlo Simulation of Univariate Symmetric Student's t-distributed Log-Returns
+```{r, echo = FALSE}
+horizons <- rownames(weights)
+weights <- as.data.frame(weights)
+weights$Horizon <- horizons
+weights$Horizon <- factor(weights$Horizon, levels = c("daily", "weekly", "monthly", "yearly"))
+weights <- weights %>% gather(DoF, Weight, 1:(ncol(weights) - 1))
+weights$DoF <- sapply(weights$DoF, FUN = function(x) strsplit(x, "=")[[1]][2])
+weights$DoF <- factor(weights$DoF, levels = c("2.5", "3", "4", "5", "7", "10", "20", "Inf"))
+ggplot(weights, aes(x = Horizon, y = Weight, fill = DoF))+
+  geom_bar(stat = "identity")+
+  theme_classic()
+```
+
+## Portfolio Optimization Using the Multivariate Skewed Student's t-Distribution
+- The assets are described by a multivariate skewed Student's t-distribution with 3.5 degrees of freedom
+- Expected shortfall of the portfolio is optimized at various confidence levels using the concept of linearity of the marginal distributions, the same relationship between $\tau$ and $\alpha$ persists
+
+### Conservative assumption
+- Number of degrees of freedom does not increase as horizon is increased
+
+## Portfolio Optimization Using the Multivariate Skewed Student's t-Distribution
+
+```{r, echo = FALSE}
+ggplot(opt.weights, aes(x = Days, y = Weight, fill = Asset))+
+  geom_area()+
+  scale_x_log10()+
+  theme_classic()
+```
+
+## Conclusion
+- Assumption of normally distributed log-returns is invalid, especially for short-term investments
+- Kurtosis and skewness are relevant quantities in portfolio optimization
+- Optimal portfolio weights are dependent of the horizon when non-normal distributions and value-at-risk or expected shortfall are used for optimization
+- The skewed Student's t-distribution is a good proxy for modelling log-returns
+- Long-term investors can and should take more tail risks than short-term investors
+
+## Discussion
+- Q&A
+- Suggestions
+- Feedback

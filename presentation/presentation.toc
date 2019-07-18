@@ -1,0 +1,4 @@
+\beamer@sectionintoc {1}{Aspects of Portfolio Optimization}{4}{0}{1}
+\beamer@sectionintoc {2}{Problems with the Normality Assumption}{8}{0}{2}
+\beamer@sectionintoc {3}{Parameter Fitting of Financial Log-Returns}{14}{0}{3}
+\beamer@sectionintoc {4}{Results}{19}{0}{4}
